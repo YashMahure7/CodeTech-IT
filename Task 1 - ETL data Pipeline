@@ -1,1 +1,37 @@
+import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
 
+df = pd.read_csv("train.csv")
+df.head()
+
+num_cols = df.select_dtypes(include=["int64", "float64"]).columns
+cat_cols = df.select_dtypes(include=["object"]).columns
+
+preprocessor = ColumnTransformer([
+    ("num", Pipeline([
+        ("imputer", SimpleImputer(strategy="mean")),
+        ("scaler", StandardScaler())
+    ]), num_cols),
+
+    ("cat", Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+    ]), cat_cols)
+])
+
+processed = preprocessor.fit_transform(df)
+
+columns = list(num_cols) + list(
+    preprocessor.named_transformers_["cat"]
+    .named_steps["onehot"]
+    .get_feature_names_out(cat_cols)
+)
+
+processed_df = pd.DataFrame(processed, columns=columns)
+processed_df.head()
+
+processed_df.to_csv("processed_data.csv", index=False)
+print("ETL completed")
